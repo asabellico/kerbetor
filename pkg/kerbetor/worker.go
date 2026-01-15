@@ -43,30 +43,28 @@ func (w *TorInstanceWorker) DownloadWorker(wg *sync.WaitGroup, p *mpb.Progress) 
 		}
 	chunkDownloadLoop:
 		for {
-			// check if there are errors in the errors channel
 			select {
-			case err := <-errors:
+			case err, ok := <-errors:
+				if !ok {
+					errors = nil
+					continue
+				}
 				if err != nil {
 					logrus.Error("cannot download chunk: ", err)
 					chunk.status = ChunkStatusError
 					break chunkDownloadLoop
 				}
-			default:
-				// Do nothing
+			case recvBytesDownloaded, ok := <-bytesDownloaded:
+				if !ok {
+					bytesDownloaded = nil
+					logrus.Debug("Chunk #", chunk.index, ". Download completed.")
+					chunk.status = ChunkStatusCompleted
+					break chunkDownloadLoop
+				}
+				logrus.Debug("Worker #", w.workerIndex, ". Got bytesDownloaded update from channel: ", chunk.bytesDownloaded, " [", humanize.Bytes(uint64(chunk.bytesDownloaded)), "]")
+				chunk.bytesDownloaded = recvBytesDownloaded
+				bar.SetCurrent(int64(chunk.bytesDownloaded))
 			}
-
-			// get downloaded bytes update from the bytesDownloaded channel
-			recvBytesDownloaded, isOpen := <-bytesDownloaded
-			if !isOpen {
-				// channel is closed, download is completed
-				logrus.Debug("Chunk #", chunk.index, ". Download completed.")
-				chunk.status = ChunkStatusCompleted
-				break chunkDownloadLoop
-			}
-			logrus.Debug("Worker #", w.workerIndex, ". Got bytesDownloaded update from channel: ", chunk.bytesDownloaded, " [", humanize.Bytes(uint64(chunk.bytesDownloaded)), "]")
-			chunk.bytesDownloaded = recvBytesDownloaded
-
-			bar.SetCurrent(int64(chunk.bytesDownloaded))
 		}
 
 		bar.Abort(true)
