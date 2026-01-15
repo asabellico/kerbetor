@@ -20,7 +20,32 @@
 go install github.com/asabellico/kerbetor@latest
 ```
 
-and make sure TOR is installed in your system and exists in your PATH.
+Make sure TOR is installed on your system and available in your `PATH`:
+
+macOS (Homebrew)
+```bash
+brew install tor
+```
+
+Debian/Ubuntu
+```bash
+sudo apt-get update && sudo apt-get install -y tor
+```
+
+Fedora/RHEL
+```bash
+sudo dnf install -y tor
+```
+
+Arch Linux
+```bash
+sudo pacman -S tor
+```
+
+Windows (Chocolatey)
+```powershell
+choco install tor -y
+```
 
 ## Usage
 
