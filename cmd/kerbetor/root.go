@@ -43,6 +43,11 @@ It is a CLI tool that can be used to download files from TOR concurrently, using
 		output, _ := cmd.Flags().GetString("output")
 		inputFile, _ := cmd.Flags().GetString("input-file")
 		chunkSizeStr, _ := cmd.Flags().GetString("chunk-size")
+		chunkCount, _ := cmd.Flags().GetUint("chunks")
+		if chunkCount > 0 && cmd.Flags().Changed("chunk-size") {
+			logrus.Error("Cannot set both --chunks and --chunk-size")
+			os.Exit(1)
+		}
 		chunkSize, err := humanize.ParseBytes(chunkSizeStr)
 		if err != nil {
 			logrus.Error("Cannot parse chunk size:", err)
@@ -51,7 +56,12 @@ It is a CLI tool that can be used to download files from TOR concurrently, using
 		maxConcurrentDownloads, _ := cmd.Flags().GetUint("parallel-downloads")
 		numTorCircuits, _ := cmd.Flags().GetUint("tor-circuits")
 
-		logrus.Info("Chunk size: ", humanize.Bytes(chunkSize))
+		if chunkCount > 0 {
+			logrus.Info("Chunk count: ", chunkCount)
+			logrus.Info("Chunk size: auto (from --chunks)")
+		} else {
+			logrus.Info("Chunk size: ", humanize.Bytes(chunkSize))
+		}
 		logrus.Info("Max concurrent downloads: ", maxConcurrentDownloads)
 		logrus.Info("Number of TOR circuits: ", numTorCircuits)
 
@@ -82,7 +92,7 @@ It is a CLI tool that can be used to download files from TOR concurrently, using
 					outputPath = buildOutputPath("", remoteUrl, idx)
 				}
 				logrus.Info("Downloading ", remoteUrl, ". Writing output to: ", outputPath)
-				errDownload := kerbetor.ConcurrentFileDownload(remoteUrl, outputPath, chunkSize, maxConcurrentDownloads, numTorCircuits)
+				errDownload := kerbetor.ConcurrentFileDownload(remoteUrl, outputPath, chunkSize, maxConcurrentDownloads, numTorCircuits, chunkCount)
 				if errDownload != nil {
 					logrus.Error(errDownload)
 					downloadErrors++
@@ -101,7 +111,7 @@ It is a CLI tool that can be used to download files from TOR concurrently, using
 		logrus.Info("Downloading ", remoteUrl, ". Writing output to: ", output)
 		downloaded := 0
 		downloadErrors := 0
-		errDownload := kerbetor.ConcurrentFileDownload(remoteUrl, output, chunkSize, maxConcurrentDownloads, numTorCircuits)
+		errDownload := kerbetor.ConcurrentFileDownload(remoteUrl, output, chunkSize, maxConcurrentDownloads, numTorCircuits, chunkCount)
 		if errDownload != nil {
 			logrus.Error(errDownload)
 			downloadErrors++
@@ -117,6 +127,7 @@ func init() {
 	rootCmd.PersistentFlags().UintP("parallel-downloads", "p", 3, "number of parallel downloads")
 	rootCmd.PersistentFlags().UintP("tor-circuits", "c", 1, "number of TOR circuits to use")
 	rootCmd.PersistentFlags().StringP("chunk-size", "s", "100mb", "chunk size")
+	rootCmd.PersistentFlags().UintP("chunks", "n", 0, "number of chunks (overrides --chunk-size)")
 	rootCmd.PersistentFlags().StringP("input-file", "i", "", "path to a text file with one URL per line")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 }

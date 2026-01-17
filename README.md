@@ -57,6 +57,12 @@ kerbetor http://myonionsite.onion/file1
 kerbetor http://myonionsite.onion/file1 --parallel-downloads 10 --tor-circuits 5
 ```
 
+To control the number of chunks (overrides `--chunk-size`):
+
+```bash
+kerbetor http://myonionsite.onion/file1 --chunks 8
+```
+
 Download multiple links from a text file (one URL per line):
 
 ```bash

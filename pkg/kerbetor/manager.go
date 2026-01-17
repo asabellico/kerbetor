@@ -12,7 +12,7 @@ import (
 	"github.com/vbauerster/mpb/v8"
 )
 
-func ConcurrentFileDownload(remoteUrl string, destinationPath string, chunkSize uint64, maxConcurrentDownloads uint, numTorCircuits uint) error {
+func ConcurrentFileDownload(remoteUrl string, destinationPath string, chunkSize uint64, maxConcurrentDownloads uint, numTorCircuits uint, chunkCount uint) error {
 	// create tor circuits
 	var circuits []*TorInstance
 	var mainHttpClient *http.Client
@@ -41,6 +41,13 @@ func ConcurrentFileDownload(remoteUrl string, destinationPath string, chunkSize 
 		return fmt.Errorf("cannot get remote file size. %s", err)
 	}
 	logrus.Info("Remote file size: ", humanize.Bytes(uint64(fileSize)))
+
+	if chunkCount > 0 {
+		chunkSize = (fileSize + uint64(chunkCount) - 1) / uint64(chunkCount)
+		logrus.Info("Computed chunk size: ", humanize.Bytes(uint64(chunkSize)))
+	} else if chunkSize == 0 {
+		return fmt.Errorf("chunk size cannot be 0")
+	}
 
 	// create chunk controller
 	logrus.Debug("Creating chunk controller...")
@@ -102,7 +109,7 @@ func ConcurrentFileDownload(remoteUrl string, destinationPath string, chunkSize 
 	for _, chunk := range *chunkController.chunks {
 		logrus.Debug("Chunk: ", chunk.chunkPath, " status: ", chunk.status)
 		if chunk.status != ChunkStatusCompleted {
-			logrus.Error("Chunk %s was not downloaded", chunk.chunkPath)
+			logrus.Errorf("Chunk %s was not downloaded", chunk.chunkPath)
 			flag = true
 		}
 	}

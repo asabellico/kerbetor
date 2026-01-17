@@ -88,6 +88,9 @@ func CheckChunksMetadata(remoteUrl string, workPath string, fileSize uint64, chu
 
 func GenerateChunks(fileSize uint64, chunkSize uint64, workPath string, remoteUrl string) *[]*Chunk {
 	var chunks []*Chunk
+	if fileSize == 0 {
+		return &chunks
+	}
 	var startOffset uint64 = 0
 	var endOffset uint64 = uint64(math.Min(float64(chunkSize), float64(fileSize))) - 1
 
@@ -149,12 +152,17 @@ func NewChunkController(remoteUrl string, workPath string, fileSize uint64, chun
 			if err != nil {
 				return nil, fmt.Errorf("cannot get file size of %s: %s", chunk.chunkPath, err)
 			}
-			if chunkFileSize != chunk.endOffset-chunk.startOffset+1 {
-				// chunk file size is not correct
-				(*chunks)[idx].status = ChunkStatusNotStarted
-			} else {
+			expectedSize := chunk.endOffset - chunk.startOffset + 1
+			if chunkFileSize == expectedSize {
 				// chunk file size is correct
 				chunk.status = ChunkStatusCompleted
+			} else if chunkFileSize > 0 && chunkFileSize < expectedSize {
+				// chunk file is partially downloaded
+				(*chunks)[idx].status = ChunkStatusNotStarted
+				(*chunks)[idx].bytesDownloaded = chunkFileSize
+			} else {
+				// chunk file size is not correct
+				(*chunks)[idx].status = ChunkStatusNotStarted
 			}
 		}
 	}
@@ -181,6 +189,8 @@ func (c *ChunkController) GetDownloadedSize() uint64 {
 	var downloadedSize uint64 = 0
 	for _, chunk := range *c.chunks {
 		switch chunk.status {
+		case ChunkStatusNotStarted:
+			downloadedSize += chunk.bytesDownloaded
 		case ChunkStatusCompleted:
 			downloadedSize += chunk.endOffset - chunk.startOffset + 1
 		case ChunkStatusInProgress:
